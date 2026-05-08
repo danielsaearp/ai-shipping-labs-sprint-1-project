@@ -1,0 +1,9 @@
+[project]
+name = "airflow-github-issues"
+version = "0.1.0"
+description = "Fetches issues from the Apache Airflow GitHub repository and stores them in Elasticsearch."
+dependencies = [
+    "requests",
+    "elasticsearch"
+    ]
+requires-python = ">=3.11"
