@@ -1,3 +1,9 @@
 LEARNING_NOTES.md
 PROJECT_CONTEXT.md
 .venv
+.env
+__pycache__/
+why *.pyc
+example_1.json
+example.json
+SESSION_HANDOFF.md
