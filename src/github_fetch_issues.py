@@ -1,7 +1,5 @@
 import os
 import requests
-import json
-import time
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -16,41 +14,15 @@ if token:
     headers["Authorization"] = f"Bearer {token}"
 
 
-# page=1
-# all_issues=[]
-
-# while page <= max_pages:
-#     params={
-#           "state": "open",
-#           "per_page": 100,
-#           "sort": "created",
-#           "direction": "desc",
-#           "page": page,
-#       }
-#     r=requests.get('https://api.github.com/repos/apache/airflow/issues'
-#             , params=params     )
-    
-#     for item in r.json():
-#         all_issues.append(item) if "pull_request" not in item
-#     page = page + 1
-
-params={
-          "state": "open",
-          "per_page": 5,
-          "sort": "created",
-          "direction": "desc",
-          "page": 1,
-
-      }
-r=requests.get('https://api.github.com/repos/apache/airflow/issues'
-          , params=params
-               , headers=headers,    )
-
 page=1
 all_issues=[]
-max_pages=2
 
-while page <= max_pages:
+while True:
+    # if page == 2:
+    #   url = "https://api.github.com/repos/apache/this-repo-does-not-exist/issues"
+    # else:
+    #   url = "https://api.github.com/repos/apache/airflow/issues"
+    url = "https://api.github.com/repos/apache/airflow/issues"
     params={
           "state": "open",
           "per_page": 100,
@@ -58,37 +30,32 @@ while page <= max_pages:
           "direction": "desc",
           "page": page,
       }
-    r=requests.get('https://api.github.com/repos/apache/airflow/issues'
-            , params=params, headers=headers,     )
     
-    print(r.status_code)
-    print(r.raise_for_status())
-    if r.raise_for_status():
-        time.sleep(30)
-        continue
+    try:
+        r=requests.get(url
+            , params=params, headers=headers,     )
+        r.raise_for_status()
+    except Exception as e:
+        print(e)
+        break
 
     for item in r.json():
         if "pull_request" not in item:
             all_issues.append(item)
-
-    #print(r)
-    if r.links.get('next'):
-        print("NEXT LINK IS: "+ r.links.get('next').get('url') +'\n')
-    else:
-        print("no more next\n")
-    #print("URL IS: " + r.json()["url"] + "\n")
-    #print(r.json())
+   
     if "next" not in r.links:
         print("end of the loop")
         break
     else:
         print("has next")
-    
     page = page + 1
-    
-print(page)
 print(len(all_issues))
-print(all_issues[0])
+print(page)
+ 
+    
+# print(page)
+# print(len(all_issues))
+# print(all_issues[0])
 
 
 
