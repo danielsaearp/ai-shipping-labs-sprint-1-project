@@ -21,7 +21,7 @@ def fetch_issues():
     while True:
         url = "https://api.github.com/repos/apache/airflow/issues"
         params={
-            "state": "open",
+            "state": "all",
             "per_page": 100,
             "sort": "created",
             "direction": "desc",
@@ -41,10 +41,8 @@ def fetch_issues():
                 all_issues.append(item)
     
         if "next" not in r.links:
-            print("end of the loop")
             break
-        else:
-            print("has next")
+    
         page = page + 1
 
     return all_issues
@@ -52,4 +50,3 @@ def fetch_issues():
 
 if __name__ == "__main__":
     issues = fetch_issues()
-    print(len(issues))
