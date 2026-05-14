@@ -19,6 +19,7 @@ This is a learning project for Python project structure, APIs, Docker, Elasticse
 - uv
 - requests
 - python-dotenv
+- tqdm
 - Elasticsearch Python client
 - Docker Compose
 - Elasticsearch
@@ -59,31 +60,35 @@ Fetch open Airflow issues:
 uv run python src/github_fetch_issues.py
 ```
 
-Fetch, transform, index, and run a simple search:
+Ingest issues into an Elasticsearch index:
 
 ```bash
-uv run python src/elasticsearch_client.py
+uv run python src/main.py ingest github_issues
 ```
 
-Inspect indices:
+Inspect an Elasticsearch index:
+
+```bash
+uv run python src/main.py inspect github_issues
+```
+
+You can also use a different index name for experiments:
+
+```bash
+uv run python src/main.py ingest test_index
+uv run python src/main.py inspect test_index
+```
+
+Inspect all indices directly through Elasticsearch:
 
 ```bash
 curl "http://localhost:9200/_cat/indices?v"
 ```
 
-## Planned CLI
-
-The next Week 2 milestone is to replace loose script execution with a small CLI entry point:
-
-```bash
-uv run python src/main.py ingest
-uv run python src/main.py inspect
-```
-
-Planned commands:
+## CLI Commands
 
 - `ingest`: fetch issues, transform them, create the index if needed, and index documents.
-- `inspect`: show what is currently in Elasticsearch, such as index existence, document count, mapping, and one sample document.
+- `inspect`: show whether an index exists, its document count, and one sample issue.
 
 ## Current Document Shape
 
@@ -114,9 +119,9 @@ The current transformed Elasticsearch document looks like:
 ## Repository Structure
 
 - `src/github_fetch_issues.py`: GitHub API fetching logic.
-- `src/elasticsearch_client.py`: Elasticsearch index creation, transformation, indexing, and simple search.
+- `src/elasticsearch_client.py`: Elasticsearch index creation, transformation, indexing, and count helpers.
 - `src/experienced_programmer_script.py`: comparison script with a cleaner GitHub fetching structure.
-- `src/main.py`: planned CLI entry point.
+- `src/main.py`: CLI entry point with `ingest` and `inspect` commands.
 - `docker-compose.yml`: local Elasticsearch service.
 - `pyproject.toml`: Python project metadata and dependencies.
 - `uv.lock`: locked dependency versions.
@@ -126,7 +131,7 @@ The current transformed Elasticsearch document looks like:
 
 ## Project Status
 
-Current phase: Week 2.
+Current phase: Week 2 complete; Week 3 is next.
 
 Completed:
 
@@ -136,8 +141,12 @@ Completed:
 - Explicit Elasticsearch mapping.
 - Basic transform from raw GitHub issue JSON to indexable documents.
 - Idempotent indexing by using stable document IDs.
-
-In progress:
-
 - Refactoring script logic into reusable functions.
-- Adding a simple CLI with `ingest` and `inspect` commands.
+- Simple CLI with `ingest` and `inspect` commands.
+- Progress bar for GitHub page fetching with `tqdm`.
+
+Next:
+
+- Week 3 update detection.
+- Incremental fetching with `state=all`, `updated_at`, and `since`.
+- Comments ingestion.

@@ -6,5 +6,6 @@ dependencies = [
     "requests",
     "elasticsearch",
     "python-dotenv>=1.2.2",
+    "tqdm>=4.67.3",
 ]
 requires-python = ">=3.11"

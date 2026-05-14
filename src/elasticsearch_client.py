@@ -36,8 +36,9 @@ def create_index_if_missing(client, index):
                     "comments": {"type": "integer"},
                 }
             })
-    # else:
-    #     print("Index already exists, moving on to indexing documents")
+        print("Creating index and moving on to indexing documents")
+    else:
+        print("Index already exists, moving on to indexing documents")
 
 def index_issue(index, id, document, client):
     client.index(index=index, id=id, document=document)
