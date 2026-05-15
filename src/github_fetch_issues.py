@@ -22,7 +22,7 @@ def fetch_issues():
         while True:
             url = "https://api.github.com/repos/apache/airflow/issues"
             params={
-                "state": "open",
+                "state": "all",
                 "per_page": 100,
                 "sort": "created",
                 "direction": "desc",
