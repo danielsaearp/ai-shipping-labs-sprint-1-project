@@ -1,5 +1,6 @@
 from elasticsearch import Elasticsearch
-from github_fetch_issues import fetch_issues
+from elasticsearch.helpers import scan
+from github_fetch_issues_v2 import fetch_issues
 
 def get_client():
     return Elasticsearch("http://localhost:9200")
@@ -68,9 +69,21 @@ def transform_issue(data):
     return treated_document
 
 
+def get_indexed_ids(client, index):
+    if not client.indices.exists(index=index):
+        return set()
+    return {
+        int(hit["_id"])
+        for hit in scan(client, index=index, _source=False)
+    }
+
+
 def ingest_issues(client,index):
     create_index_if_missing(client=client,index=index)
-    issues = fetch_issues()
+    known_ids = get_indexed_ids(client, index)
+    if known_ids:
+        print(f"Skipping {len(known_ids)} issues already in the index")
+    issues = fetch_issues(known_ids=known_ids)
 
     for data in issues:
         treated_json=transform_issue(data=data)

@@ -1,12 +1,12 @@
 # Airflow GitHub Issues Ingestion
 
-Fetch open issues from the Apache Airflow GitHub repository, transform the raw API response, and index the documents into local Elasticsearch.
+Fetch GitHub issues from the Apache Airflow repository, transform the raw API response, and index the documents into local Elasticsearch.
 
 This is a learning project for Python project structure, APIs, Docker, Elasticsearch, and ingestion pipelines.
 
 ## What It Does
 
-- Fetches open issues from `apache/airflow` using the GitHub API.
+- Fetches issues from `apache/airflow` using the GitHub API.
 - Filters pull requests out of the issues endpoint response.
 - Transforms raw GitHub issue JSON into a smaller Elasticsearch document.
 - Creates a `github_issues` index with an explicit mapping.
@@ -54,7 +54,7 @@ curl "http://localhost:9200"
 
 ## Usage
 
-Fetch open Airflow issues:
+Fetch Airflow issues directly:
 
 ```bash
 uv run python src/github_fetch_issues.py
@@ -90,6 +90,19 @@ curl "http://localhost:9200/_cat/indices?v"
 - `ingest`: fetch issues, transform them, create the index if needed, and index documents.
 - `inspect`: show whether an index exists, its document count, and one sample issue.
 
+## Current Fetcher Notes
+
+There are currently two GitHub issue fetcher scripts:
+
+- `src/github_fetch_issues.py`: simple REST issues endpoint fetcher using `state=all`, `sort=created`, and page-based pagination. This is useful for basic experimentation but can run into deep pagination limits on large repositories.
+- `src/github_fetch_issues_v2.py`: experimental REST issues endpoint fetcher using `state=all`, `sort=updated`, `direction=asc`, optional `since`, overlap, and ID deduplication. It can also receive existing Elasticsearch IDs as `known_ids` and skip those IDs while fetching. This explores update/backfill behavior but is not yet the final Week 3 incremental design.
+
+`src/elasticsearch_client.py` currently imports `fetch_issues` from `github_fetch_issues_v2.py`, so `main.py ingest ...` uses the experimental v2 fetcher.
+
+Current ingestion scans the target Elasticsearch index first, collects existing document IDs with `elasticsearch.helpers.scan`, and passes those IDs into the v2 fetcher as `known_ids`.
+
+Important caveat: this avoids reindexing already indexed IDs, but it is not complete update detection yet. If an already indexed issue changes in GitHub, skipping by ID alone would skip the update too. Week 3 still needs timestamp-based update detection.
+
 ## Current Document Shape
 
 The current transformed Elasticsearch document looks like:
@@ -118,8 +131,9 @@ The current transformed Elasticsearch document looks like:
 
 ## Repository Structure
 
-- `src/github_fetch_issues.py`: GitHub API fetching logic.
-- `src/elasticsearch_client.py`: Elasticsearch index creation, transformation, indexing, and count helpers.
+- `src/github_fetch_issues.py`: simple GitHub issues REST fetcher.
+- `src/github_fetch_issues_v2.py`: experimental updated-at cursor fetcher for Week 3/backfill learning.
+- `src/elasticsearch_client.py`: Elasticsearch index creation, transformation, indexing, existing-ID scanning, and count helpers.
 - `src/experienced_programmer_script.py`: comparison script with a cleaner GitHub fetching structure.
 - `src/main.py`: CLI entry point with `ingest` and `inspect` commands.
 - `docker-compose.yml`: local Elasticsearch service.
@@ -131,7 +145,7 @@ The current transformed Elasticsearch document looks like:
 
 ## Project Status
 
-Current phase: Week 2 complete; Week 3 is next.
+Current phase: Week 3 started.
 
 Completed:
 
@@ -145,8 +159,8 @@ Completed:
 - Simple CLI with `ingest` and `inspect` commands.
 - Progress bar for GitHub page fetching with `tqdm`.
 
-Next:
+Week 3 focus:
 
-- Week 3 update detection.
 - Incremental fetching with `state=all`, `updated_at`, and `since`.
+- Detect issues that changed since the last ingest and update them in Elasticsearch.
 - Comments ingestion.
