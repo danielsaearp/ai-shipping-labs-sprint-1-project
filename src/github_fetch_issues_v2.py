@@ -19,9 +19,9 @@ URL = "https://api.github.com/repos/apache/airflow/issues"
 OVERLAP = timedelta(seconds=60)
 
 
-def fetch_issues(since=None, known_ids=None):
+def fetch_issues(since=None):
     all_issues = []
-    seen_ids = set(known_ids) if known_ids else set()
+    
 
     with tqdm(desc="Fetching GitHub issue pages", unit=" page") as progress:
         while True:
@@ -42,19 +42,14 @@ def fetch_issues(since=None, known_ids=None):
 
                 try:
                     r = requests.get(URL, params=params, headers=headers)
-                except Exception as e:
-                    print(e)
-                    return all_issues
+                except requests.exceptions.RequestException:
+                    raise
 
                 if r.status_code == 422:
                     hit_cap = True
                     break
 
-                try:
-                    r.raise_for_status()
-                except Exception as e:
-                    print(e)
-                    return all_issues
+                r.raise_for_status()
 
                 items = r.json()
                 if not items:
@@ -64,9 +59,6 @@ def fetch_issues(since=None, known_ids=None):
                     last_updated = item["updated_at"]
                     if "pull_request" in item:
                         continue
-                    if item["id"] in seen_ids:
-                        continue
-                    seen_ids.add(item["id"])
                     all_issues.append(item)
 
                 progress.update(1)

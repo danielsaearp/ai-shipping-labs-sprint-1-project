@@ -2,9 +2,9 @@ from elasticsearch_client import get_client, ingest_issues
 import argparse
 import random
 
-def run_ingest(index):
+def run_ingest(index, mode, since):
     client = get_client()
-    ingest_issues(client=client, index=index)
+    ingest_issues(client=client, index=index, mode=mode, since=since)
 
 
 def run_inspect(index):
@@ -43,13 +43,21 @@ def main():
     parser = argparse.ArgumentParser(description='a cli for inspecting and ingesting issues from github into elasticsearch.')
     parser.add_argument("command", choices=["ingest", "inspect"])
     parser.add_argument("index", help="the index name to be created or inspected" )
+    parser.add_argument("mode", nargs="?", choices=["full_load", "backfill", "incremental_load"])
+    parser.add_argument("--since", help="fetch issues updated since this timestamp")
 
     args = parser.parse_args()
 
     if args.command == "ingest":
-        run_ingest(args.index)
+        if not args.mode:
+            parser.error("ingest requires a mode: full_load, backfill, or incremental_load")
+        if not args.since and args.mode=="backfill":
+            parser.error("ingest backfill requires a since date in the format YYYY-MM-DD HH:MM:SS")
+        if args.mode in ["full_load", "incremental_load"] and args.since:
+            parser.error("ingest full_load and incremental_load accept no since argument")
+        run_ingest(args.index, args.mode, args.since)
     
-    if args.command == "inspect":
+    elif args.command == "inspect":
         run_inspect(args.index)
 
     

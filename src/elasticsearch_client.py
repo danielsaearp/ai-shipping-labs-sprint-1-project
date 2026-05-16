@@ -1,6 +1,10 @@
 from elasticsearch import Elasticsearch
-from elasticsearch.helpers import scan
 from github_fetch_issues_v2 import fetch_issues
+from datetime import datetime, timezone
+import json
+from pathlib import Path
+
+STATE_FILE = Path("ingestion_state.json")
 
 def get_client():
     return Elasticsearch("http://localhost:9200")
@@ -69,26 +73,77 @@ def transform_issue(data):
     return treated_document
 
 
-def get_indexed_ids(client, index):
-    if not client.indices.exists(index=index):
-        return set()
-    return {
-        int(hit["_id"])
-        for hit in scan(client, index=index, _source=False)
+
+def load_ingestion_state():
+    if not STATE_FILE.exists():
+        return {}
+    with STATE_FILE.open() as f:
+        return json.load(f)
+
+
+def save_ingestion_state(state):
+    with STATE_FILE.open("w") as f:
+        json.dump(state, f, indent=2)
+
+
+def get_last_ingest_at(index):
+    state = load_ingestion_state()
+    index_state = state.get(index, {})
+    return index_state.get("last_ingest_at")
+
+
+def save_last_ingest_at(index, last_ingest_at):
+    state = load_ingestion_state()
+    state[index] = {
+        "last_ingest_at": last_ingest_at
     }
+    save_ingestion_state(state)
 
 
-def ingest_issues(client,index):
-    create_index_if_missing(client=client,index=index)
-    known_ids = get_indexed_ids(client, index)
-    if known_ids:
-        print(f"Skipping {len(known_ids)} issues already in the index")
-    issues = fetch_issues(known_ids=known_ids)
+def format_user_since_for_github(since):
+    try:
+        dt = datetime.strptime(since, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        dt = datetime.strptime(since, "%Y-%m-%d")
+    dt = dt.replace(tzinfo=timezone.utc)
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def current_utc_timestamp():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+
+def ingest_issues(client,index,mode,since=None):
+    run_started_at = current_utc_timestamp()
+
+    if mode == "backfill":
+        create_index_if_missing(client=client,index=index)
+        since = format_user_since_for_github(since)
+
+    elif mode == "full_load":
+        create_index_if_missing(client=client,index=index)
+        since = None
+
+    elif mode == "incremental_load":
+        if not client.indices.exists(index=index):
+            print("index does not exist, run full_load or backfill first")
+            return
+        since = get_last_ingest_at(index)
+        if not since:
+            print("no last_ingest_at found, run full_load or backfill first")
+            return
+
+    print(f"Mode: {mode}")
+    print(f"GitHub since: {since or 'none'}")
+
+    issues = fetch_issues(since=since)
 
     for data in issues:
         treated_json=transform_issue(data=data)
         index_issue(index=index, id=treated_json["id"], document=treated_json, client=client)
     client.indices.refresh(index=index)
+    save_last_ingest_at(index, run_started_at)
 
 def count_documents_created_before(client,index, max_time):
     count = client.count(
@@ -103,8 +158,6 @@ def count_documents_created_before(client,index, max_time):
     )["count"]
 
     return count
-
-
 
 
 
